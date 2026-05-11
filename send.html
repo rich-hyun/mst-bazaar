@@ -315,6 +315,22 @@
       display: none;
     }
     .balance-card.disconnected .balance-connect-btn { display: block; }
+
+    .balance-switch-btn {
+      width: 100%;
+      margin-top: 10px;
+      padding: 12px;
+      background: rgba(241, 196, 15, 0.18);
+      border: 1px solid rgba(241, 196, 15, 0.5);
+      border-radius: 10px;
+      color: #f1c40f;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: none;
+    }
+    .balance-switch-btn:active { transform: scale(0.98); }
+    .balance-card.warning .balance-switch-btn { display: block; }
   </style>
 </head>
 <body>
@@ -330,6 +346,9 @@
       <div id="balanceAmount" class="balance-amount">지갑 미연결</div>
       <div id="balanceSub" class="balance-sub"></div>
       <button class="balance-connect-btn" onclick="connectWallet()">지갑 연결하기</button>
+      <button id="switchNetworkBtn" class="balance-switch-btn" onclick="switchToMustree()">
+        🔄 Mustree 네트워크로 전환
+      </button>
     </div>
 
     <div class="section">
@@ -442,6 +461,51 @@
         await refreshBalance();
       } catch (e) {
         console.error('Connect failed:', e);
+      }
+    }
+
+    const NETWORK_PARAMS = {
+      chainId: CHAIN_ID_HEX,
+      chainName: 'Mustree',
+      nativeCurrency: { name: 'MST', symbol: 'MST', decimals: 18 },
+      rpcUrls: ['https://block.mst3.site'],
+      blockExplorerUrls: []
+    };
+
+    async function switchToMustree() {
+      if (typeof window.ethereum === 'undefined') return;
+      const switchBtn = document.getElementById('switchNetworkBtn');
+      const originalText = switchBtn.textContent;
+      switchBtn.textContent = '전환 요청 중...';
+      switchBtn.disabled = true;
+
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: CHAIN_ID_HEX }]
+        });
+        // 전환 성공 시 chainChanged 이벤트가 자동으로 refreshBalance 호출
+      } catch (e) {
+        // 네트워크가 등록 안 돼 있는 경우 → 추가 시도
+        if (e.code === 4902 || (e.data && e.data.originalError && e.data.originalError.code === 4902)) {
+          try {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [NETWORK_PARAMS]
+            });
+          } catch (addErr) {
+            console.error('Add network failed:', addErr);
+            if (addErr.code !== 4001) {
+              alert('네트워크 추가 실패: ' + (addErr.message || '알 수 없는 오류'));
+            }
+          }
+        } else if (e.code !== 4001) {
+          console.error('Switch failed:', e);
+          alert('네트워크 전환 실패: ' + (e.message || '알 수 없는 오류'));
+        }
+      } finally {
+        switchBtn.textContent = originalText;
+        switchBtn.disabled = false;
       }
     }
 
