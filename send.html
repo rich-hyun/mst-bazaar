@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>MST 송금 — 부스 운영용</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    body {
+      background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 50%, #16213e 100%);
+      color: #fff;
+      min-height: 100vh;
+      padding: 16px;
+    }
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 24px 20px;
+      backdrop-filter: blur(10px);
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0 0 4px 0;
+      text-align: center;
+    }
+    .subtitle {
+      color: #8b8ba0;
+      font-size: 13px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .section { margin-bottom: 20px; }
+    .section-label {
+      font-size: 12px;
+      color: #8b8ba0;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .address-display {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 14px;
+      font-family: 'SF Mono', Monaco, Menlo, monospace;
+      font-size: 13px;
+      word-break: break-all;
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      color: #fff;
+    }
+    .address-display.empty { color: #555; font-family: inherit; }
+    .address-display.valid { border-color: rgba(46, 204, 113, 0.4); }
+    .address-display.invalid { border-color: rgba(231, 76, 60, 0.4); color: #e74c3c; }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-scan {
+      background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+      color: #fff;
+    }
+    .btn-send {
+      background: linear-gradient(135deg, #f6851b 0%, #e2761b 100%);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(246, 133, 27, 0.3);
+      margin-top: 8px;
+      font-size: 17px;
+      padding: 18px;
+    }
+    .btn-send:disabled {
+      background: #2a2a3e;
+      color: #555;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.06);
+      color: #ccc;
+      font-size: 13px;
+      padding: 10px;
+    }
+
+    .preset-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .preset-btn {
+      padding: 16px 10px;
+      background: rgba(255,255,255,0.05);
+      border: 1.5px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .preset-btn:active { transform: scale(0.97); }
+    .preset-btn.selected {
+      background: rgba(246, 133, 27, 0.15);
+      border-color: #f6851b;
+    }
+    .preset-krw {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .preset-mst {
+      font-size: 12px;
+      color: #8b8ba0;
+    }
+    .preset-btn.selected .preset-mst { color: #f6851b; }
+
+    .custom-input {
+      width: 100%;
+      padding: 14px;
+      background: rgba(0,0,0,0.3);
+      border: 1.5px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      color: #fff;
+      font-size: 15px;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+    .custom-input:focus {
+      outline: none;
+      border-color: #f6851b;
+    }
+    .custom-mst-preview {
+      text-align: center;
+      font-size: 13px;
+      color: #8b8ba0;
+      min-height: 18px;
+    }
+
+    .scanner-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.95);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+    .scanner-overlay.active { display: flex; }
+    #video {
+      width: 100%;
+      max-width: 400px;
+      border-radius: 16px;
+      border: 2px solid #f6851b;
+    }
+    #canvas { display: none; }
+    .scanner-hint {
+      color: #fff;
+      text-align: center;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    .scanner-close {
+      padding: 12px 24px;
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .status {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      text-align: center;
+      display: none;
+      line-height: 1.5;
+    }
+    .status.success {
+      display: block;
+      background: rgba(46, 204, 113, 0.15);
+      color: #2ecc71;
+      border: 1px solid rgba(46, 204, 113, 0.3);
+    }
+    .status.error {
+      display: block;
+      background: rgba(231, 76, 60, 0.15);
+      color: #e74c3c;
+      border: 1px solid rgba(231, 76, 60, 0.3);
+    }
+    .status.info {
+      display: block;
+      background: rgba(52, 152, 219, 0.15);
+      color: #3498db;
+      border: 1px solid rgba(52, 152, 219, 0.3);
+    }
+
+    .summary {
+      background: rgba(246, 133, 27, 0.08);
+      border: 1px solid rgba(246, 133, 27, 0.2);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .summary.active { display: block; }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      font-size: 14px;
+    }
+    .summary-label { color: #8b8ba0; }
+    .summary-value { color: #fff; font-weight: 600; }
+    .summary-value.highlight { color: #f6851b; font-size: 17px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>💸 MST 송금</h1>
+    <p class="subtitle">부스 운영자용 · 1 MST = 1,000원 (10% 보너스 포함)</p>
+
+    <div class="section">
+      <div class="section-label">받는 사람 지갑 주소</div>
+      <div id="addressDisplay" class="address-display empty">QR 스캔으로 입력하세요</div>
+      <button class="btn btn-scan" style="margin-top: 8px;" onclick="startScan()">
+        📷 QR 스캔하기
+      </button>
+    </div>
+
+    <div class="section">
+      <div class="section-label">금액 선택</div>
+      <div class="preset-grid">
+        <div class="preset-btn" onclick="selectPreset(this, 5000, 5.5)">
+          <div class="preset-krw">5,000원</div>
+          <div class="preset-mst">→ 5.5 MST</div>
+        </div>
+        <div class="preset-btn" onclick="selectPreset(this, 10000, 11)">
+          <div class="preset-krw">10,000원</div>
+          <div class="preset-mst">→ 11 MST</div>
+        </div>
+        <div class="preset-btn" onclick="selectPreset(this, 30000, 33)">
+          <div class="preset-krw">30,000원</div>
+          <div class="preset-mst">→ 33 MST</div>
+        </div>
+        <div class="preset-btn" onclick="selectPreset(this, 50000, 55)">
+          <div class="preset-krw">50,000원</div>
+          <div class="preset-mst">→ 55 MST</div>
+        </div>
+      </div>
+      <input type="number" id="customKrw" class="custom-input" placeholder="직접 입력 (원)" inputmode="numeric" oninput="onCustomInput()">
+      <div id="customPreview" class="custom-mst-preview"></div>
+    </div>
+
+    <div id="summary" class="summary">
+      <div class="summary-row">
+        <span class="summary-label">결제 금액</span>
+        <span class="summary-value" id="summaryKrw">-</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">보낼 MST</span>
+        <span class="summary-value highlight" id="summaryMst">-</span>
+      </div>
+    </div>
+
+    <button id="sendBtn" class="btn btn-send" onclick="sendMST()" disabled>
+      메타마스크로 송금하기
+    </button>
+
+    <div id="status" class="status"></div>
+
+    <button class="btn btn-secondary" style="margin-top: 16px;" onclick="resetAll()">
+      초기화
+    </button>
+  </div>
+
+  <div id="scanner" class="scanner-overlay">
+    <video id="video" playsinline></video>
+    <canvas id="canvas"></canvas>
+    <div class="scanner-hint">참여자 메타마스크의 주소 QR을 카메라에 비춰주세요</div>
+    <button class="scanner-close" onclick="stopScan()">취소</button>
+  </div>
+
+  <script>
+    const CHAIN_ID_HEX = '0x1DB1';
+    const CHAIN_ID_DEC = 7601;
+
+    let recipient = null;
+    let selectedKrw = 0;
+    let selectedMst = 0;
+    let videoStream = null;
+    let scanRAF = null;
+
+    function isValidAddress(addr) {
+      return /^0x[a-fA-F0-9]{40}$/.test(addr);
+    }
+
+    function extractAddress(text) {
+      const m = text.match(/0x[a-fA-F0-9]{40}/);
+      return m ? m[0] : null;
+    }
+
+    function setAddress(addr) {
+      const display = document.getElementById('addressDisplay');
+      if (!addr) {
+        recipient = null;
+        display.textContent = 'QR 스캔으로 입력하세요';
+        display.className = 'address-display empty';
+      } else if (isValidAddress(addr)) {
+        recipient = addr;
+        display.textContent = addr;
+        display.className = 'address-display valid';
+      } else {
+        recipient = null;
+        display.textContent = '유효하지 않은 주소: ' + addr;
+        display.className = 'address-display invalid';
+      }
+      updateSummary();
+    }
+
+    function selectPreset(el, krw, mst) {
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('customKrw').value = '';
+      document.getElementById('customPreview').textContent = '';
+      selectedKrw = krw;
+      selectedMst = mst;
+      updateSummary();
+    }
+
+    function onCustomInput() {
+      const v = parseFloat(document.getElementById('customKrw').value);
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
+      if (isNaN(v) || v <= 0) {
+        selectedKrw = 0;
+        selectedMst = 0;
+        document.getElementById('customPreview').textContent = '';
+      } else {
+        selectedKrw = v;
+        // 10원당 0.011 MST → 1원당 0.0011 MST
+        selectedMst = +(v * 0.0011).toFixed(8);
+        document.getElementById('customPreview').textContent = `→ ${selectedMst} MST (10% 보너스 포함)`;
+      }
+      updateSummary();
+    }
+
+    function updateSummary() {
+      const summary = document.getElementById('summary');
+      const sendBtn = document.getElementById('sendBtn');
+      if (recipient && selectedMst > 0) {
+        summary.classList.add('active');
+        document.getElementById('summaryKrw').textContent = selectedKrw.toLocaleString() + '원';
+        document.getElementById('summaryMst').textContent = selectedMst + ' MST';
+        sendBtn.disabled = false;
+      } else {
+        summary.classList.remove('active');
+        sendBtn.disabled = true;
+      }
+    }
+
+    function setStatus(html, type) {
+      const el = document.getElementById('status');
+      el.innerHTML = html;
+      el.className = 'status ' + type;
+    }
+
+    async function startScan() {
+      const overlay = document.getElementById('scanner');
+      const video = document.getElementById('video');
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        });
+        video.srcObject = videoStream;
+        video.setAttribute('playsinline', true);
+        await video.play();
+        overlay.classList.add('active');
+        scanLoop();
+      } catch (e) {
+        setStatus('카메라 접근 실패: ' + e.message, 'error');
+      }
+    }
+
+    function stopScan() {
+      const overlay = document.getElementById('scanner');
+      overlay.classList.remove('active');
+      if (videoStream) {
+        videoStream.getTracks().forEach(t => t.stop());
+        videoStream = null;
+      }
+      if (scanRAF) cancelAnimationFrame(scanRAF);
+    }
+
+    function scanLoop() {
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        if (code) {
+          const addr = extractAddress(code.data);
+          if (addr) {
+            stopScan();
+            setAddress(addr);
+            setStatus('✅ 주소 인식 완료', 'success');
+            return;
+          }
+        }
+      }
+      scanRAF = requestAnimationFrame(scanLoop);
+    }
+
+    // MST는 18 decimals 네이티브 코인. 부동소수점 정밀도 손실 방지를 위해 BigInt 사용.
+    function mstToWeiHex(mstAmount) {
+      // mstAmount는 최대 소수점 8자리까지 허용 → 10^8을 곱해서 정수화한 뒤 10^10을 추가로 곱함
+      const scale = 1e8;
+      const intPart = BigInt(Math.round(mstAmount * scale));
+      const remaining = 10n ** 10n; // 18 - 8 = 10
+      const wei = intPart * remaining;
+      return '0x' + wei.toString(16);
+    }
+
+    async function sendMST() {
+      if (!recipient || selectedMst <= 0) return;
+      const sendBtn = document.getElementById('sendBtn');
+
+      if (typeof window.ethereum === 'undefined') {
+        setStatus('메타마스크 인앱 브라우저에서 열어주세요.<br>잠시 후 자동으로 이동합니다...', 'info');
+        setTimeout(() => {
+          const host = window.location.host;
+          const path = window.location.pathname;
+          window.location.href = 'https://metamask.app.link/dapp/' + host + path;
+        }, 1500);
+        return;
+      }
+
+      sendBtn.disabled = true;
+      setStatus('체인 확인 중...', 'info');
+
+      try {
+        // 현재 체인이 Mustree인지 확인, 아니면 전환
+        const currentChain = await window.ethereum.request({ method: 'eth_chainId' });
+        if (currentChain.toLowerCase() !== CHAIN_ID_HEX.toLowerCase()) {
+          try {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: CHAIN_ID_HEX }]
+            });
+          } catch (e) {
+            if (e.code === 4902) {
+              setStatus('Mustree 네트워크가 등록되지 않았습니다. 먼저 네트워크 등록 페이지에서 추가해 주세요.', 'error');
+              sendBtn.disabled = false;
+              return;
+            }
+            throw e;
+          }
+        }
+
+        // 계정 연결
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const from = accounts[0];
+
+        const valueHex = mstToWeiHex(selectedMst);
+        setStatus('메타마스크에서 송금을 승인해 주세요...', 'info');
+
+        const txHash = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [{
+            from: from,
+            to: recipient,
+            value: valueHex
+          }]
+        });
+
+        setStatus(`✅ 송금 완료! ${selectedMst} MST 전송됨<br><span style="font-size:11px;opacity:0.7;word-break:break-all;">TX: ${txHash}</span>`, 'success');
+        sendBtn.textContent = '✓ 송금 완료';
+      } catch (error) {
+        console.error(error);
+        if (error.code === 4001) {
+          setStatus('송금이 취소되었습니다.', 'error');
+        } else {
+          setStatus('오류: ' + (error.message || '알 수 없는 오류'), 'error');
+        }
+        sendBtn.disabled = false;
+      }
+    }
+
+    function resetAll() {
+      setAddress(null);
+      selectedKrw = 0;
+      selectedMst = 0;
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
+      document.getElementById('customKrw').value = '';
+      document.getElementById('customPreview').textContent = '';
+      document.getElementById('status').className = 'status';
+      document.getElementById('status').innerHTML = '';
+      document.getElementById('sendBtn').textContent = '메타마스크로 송금하기';
+      updateSummary();
+    }
+  </script>
+</body>
+</html>
