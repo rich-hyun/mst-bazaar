@@ -236,12 +236,101 @@
     .summary-label { color: #8b8ba0; }
     .summary-value { color: #fff; font-weight: 600; }
     .summary-value.highlight { color: #f6851b; font-size: 17px; }
+
+    .balance-card {
+      background: linear-gradient(135deg, rgba(46, 204, 113, 0.12) 0%, rgba(46, 204, 113, 0.04) 100%);
+      border: 1px solid rgba(46, 204, 113, 0.3);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .balance-card.warning {
+      background: linear-gradient(135deg, rgba(241, 196, 15, 0.12) 0%, rgba(241, 196, 15, 0.04) 100%);
+      border-color: rgba(241, 196, 15, 0.4);
+    }
+    .balance-card.critical {
+      background: linear-gradient(135deg, rgba(231, 76, 60, 0.15) 0%, rgba(231, 76, 60, 0.05) 100%);
+      border-color: rgba(231, 76, 60, 0.4);
+    }
+    .balance-card.disconnected {
+      background: rgba(255,255,255,0.03);
+      border-color: rgba(255,255,255,0.08);
+    }
+    .balance-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .balance-label {
+      font-size: 11px;
+      color: #8b8ba0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .balance-refresh {
+      background: rgba(255,255,255,0.08);
+      border: none;
+      color: #ccc;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    .balance-refresh:active { transform: scale(0.9); }
+    .balance-refresh.spinning { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .balance-amount {
+      font-size: 26px;
+      font-weight: 700;
+      color: #2ecc71;
+      letter-spacing: -0.5px;
+    }
+    .balance-card.warning .balance-amount { color: #f1c40f; }
+    .balance-card.critical .balance-amount { color: #e74c3c; }
+    .balance-card.disconnected .balance-amount { color: #555; font-size: 16px; font-weight: 500; }
+    .balance-sub {
+      font-size: 12px;
+      color: #8b8ba0;
+      margin-top: 4px;
+      font-family: 'SF Mono', Monaco, Menlo, monospace;
+      word-break: break-all;
+    }
+    .balance-connect-btn {
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+      background: rgba(52, 152, 219, 0.2);
+      border: 1px solid rgba(52, 152, 219, 0.4);
+      border-radius: 10px;
+      color: #3498db;
+      font-size: 13px;
+      cursor: pointer;
+      display: none;
+    }
+    .balance-card.disconnected .balance-connect-btn { display: block; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>💸 MST 송금</h1>
     <p class="subtitle">부스 운영자용 · 1 MST = 1,000원 (10% 보너스 포함)</p>
+
+    <div id="balanceCard" class="balance-card disconnected">
+      <div class="balance-header">
+        <span class="balance-label">운영 지갑 잔고</span>
+        <button id="refreshBtn" class="balance-refresh" onclick="refreshBalance()" title="새로고침">↻</button>
+      </div>
+      <div id="balanceAmount" class="balance-amount">지갑 미연결</div>
+      <div id="balanceSub" class="balance-sub"></div>
+      <button class="balance-connect-btn" onclick="connectWallet()">지갑 연결하기</button>
+    </div>
 
     <div class="section">
       <div class="section-label">받는 사람 지갑 주소</div>
@@ -313,6 +402,8 @@
     let selectedMst = 0;
     let videoStream = null;
     let scanRAF = null;
+    let operatorAddress = null;
+    let currentBalanceWei = 0n;
 
     function isValidAddress(addr) {
       return /^0x[a-fA-F0-9]{40}$/.test(addr);
@@ -322,6 +413,110 @@
       const m = text.match(/0x[a-fA-F0-9]{40}/);
       return m ? m[0] : null;
     }
+
+    // wei(BigInt) → MST(소수점 4자리) 표시용
+    function weiToMstString(weiBigInt) {
+      const decimals = 18n;
+      const divisor = 10n ** decimals;
+      const intPart = weiBigInt / divisor;
+      const fracPart = weiBigInt % divisor;
+      const fracStr = fracPart.toString().padStart(18, '0').slice(0, 4);
+      return intPart.toString() + '.' + fracStr;
+    }
+
+    function shortAddr(addr) {
+      if (!addr) return '';
+      return addr.slice(0, 6) + '...' + addr.slice(-4);
+    }
+
+    async function connectWallet() {
+      if (typeof window.ethereum === 'undefined') {
+        const host = window.location.host;
+        const path = window.location.pathname;
+        window.location.href = 'https://metamask.app.link/dapp/' + host + path;
+        return;
+      }
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        operatorAddress = accounts[0];
+        await refreshBalance();
+      } catch (e) {
+        console.error('Connect failed:', e);
+      }
+    }
+
+    async function refreshBalance() {
+      if (typeof window.ethereum === 'undefined' || !operatorAddress) {
+        return;
+      }
+      const card = document.getElementById('balanceCard');
+      const amount = document.getElementById('balanceAmount');
+      const sub = document.getElementById('balanceSub');
+      const refreshBtn = document.getElementById('refreshBtn');
+
+      refreshBtn.classList.add('spinning');
+
+      try {
+        // 체인 확인 — 다른 체인에 있으면 표시만 그렇게 함
+        const currentChain = await window.ethereum.request({ method: 'eth_chainId' });
+        if (currentChain.toLowerCase() !== CHAIN_ID_HEX.toLowerCase()) {
+          card.className = 'balance-card warning';
+          amount.textContent = '⚠ 다른 네트워크';
+          sub.textContent = 'Mustree 네트워크로 전환 필요';
+          return;
+        }
+
+        const balanceHex = await window.ethereum.request({
+          method: 'eth_getBalance',
+          params: [operatorAddress, 'latest']
+        });
+        currentBalanceWei = BigInt(balanceHex);
+        const mstStr = weiToMstString(currentBalanceWei);
+        const mstNum = parseFloat(mstStr);
+
+        amount.textContent = mstStr + ' MST';
+        sub.textContent = shortAddr(operatorAddress) + ' · ≈ ' + Math.floor(mstNum * 1000).toLocaleString() + '원';
+
+        // 잔고 수준에 따른 색상
+        if (mstNum < 10) {
+          card.className = 'balance-card critical';
+        } else if (mstNum < 50) {
+          card.className = 'balance-card warning';
+        } else {
+          card.className = 'balance-card';
+        }
+      } catch (e) {
+        console.error('Balance fetch failed:', e);
+        card.className = 'balance-card disconnected';
+        amount.textContent = '조회 실패';
+        sub.textContent = e.message || '';
+      } finally {
+        setTimeout(() => refreshBtn.classList.remove('spinning'), 400);
+      }
+    }
+
+    // 페이지 로드 시 자동 연결 시도 (이미 권한 부여된 상태면 바로 표시)
+    window.addEventListener('load', async () => {
+      if (typeof window.ethereum === 'undefined') return;
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts && accounts.length > 0) {
+          operatorAddress = accounts[0];
+          await refreshBalance();
+        }
+      } catch (e) {
+        console.error(e);
+      }
+
+      // 계정·체인 변경 이벤트 리스닝
+      if (window.ethereum.on) {
+        window.ethereum.on('accountsChanged', async (accs) => {
+          operatorAddress = accs[0] || null;
+          if (operatorAddress) await refreshBalance();
+        });
+        window.ethereum.on('chainChanged', () => refreshBalance());
+      }
+    });
 
     function setAddress(addr) {
       const display = document.getElementById('addressDisplay');
@@ -502,6 +697,10 @@
 
         setStatus(`✅ 송금 완료! ${selectedMst} MST 전송됨<br><span style="font-size:11px;opacity:0.7;word-break:break-all;">TX: ${txHash}</span>`, 'success');
         sendBtn.textContent = '✓ 송금 완료';
+
+        // 송금 후 잔고 갱신 (블록 반영까지 살짝 대기)
+        operatorAddress = from;
+        setTimeout(() => refreshBalance(), 2000);
       } catch (error) {
         console.error(error);
         if (error.code === 4001) {
