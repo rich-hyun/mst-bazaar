@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#003876">
+  <title>MST 결제 · 음식점</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      background: #f5f6f8;
+      color: #1a1a1a;
+      min-height: 100vh;
+      padding-bottom: 40px;
+    }
+
+    /* ===== 상단 헤더 (은행 앱 스타일) ===== */
+    .header {
+      background: linear-gradient(135deg, #003876 0%, #00529b 100%);
+      color: #fff;
+      padding: 18px 20px 24px 20px;
+      position: relative;
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header-logo-icon {
+      width: 32px;
+      height: 32px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .header-logo-text {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .header-status {
+      font-size: 11px;
+      padding: 4px 10px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .header-status::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: #4cd964;
+      border-radius: 50%;
+      box-shadow: 0 0 6px #4cd964;
+    }
+    .header-title {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+    .header-subtitle {
+      font-size: 12px;
+      opacity: 0.85;
+      font-weight: 400;
+    }
+
+    /* ===== 환율 정보 카드 (헤더와 본문 사이) ===== */
+    .rate-info {
+      background: #fff;
+      margin: -10px 16px 0 16px;
+      border-radius: 14px;
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 16px rgba(0, 56, 118, 0.12);
+      position: relative;
+      z-index: 1;
+    }
+    .rate-left-label {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 4px;
+      letter-spacing: 0.3px;
+    }
+    .rate-main {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+    .rate-main .equals {
+      color: #003876;
+      margin: 0 6px;
+    }
+    .rate-main .value {
+      color: #003876;
+      font-size: 17px;
+    }
+    .rate-tag {
+      background: #f0f4fa;
+      color: #003876;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* ===== 본문 카드 ===== */
+    .content {
+      padding: 16px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    /* 받는 곳 정보 */
+    .recipient {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .recipient-icon {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #003876 0%, #00529b 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .recipient-info { flex: 1; min-width: 0; }
+    .recipient-label {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 3px;
+    }
+    .recipient-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 3px;
+    }
+    .recipient-addr {
+      font-size: 11px;
+      color: #888;
+      font-family: 'SF Mono', Monaco, Menlo, monospace;
+      letter-spacing: 0.2px;
+      word-break: break-all;
+    }
+
+    /* 금액 입력 */
+    .amount-section { padding: 8px 0; }
+    .amount-label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    .amount-input-wrap {
+      position: relative;
+      margin-bottom: 4px;
+    }
+    .amount-input {
+      width: 100%;
+      font-size: 32px;
+      font-weight: 800;
+      color: #1a1a1a;
+      border: none;
+      background: transparent;
+      padding: 6px 50px 6px 0;
+      letter-spacing: -1px;
+    }
+    .amount-input:focus { outline: none; }
+    .amount-input::placeholder { color: #d0d0d0; }
+    .amount-suffix {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+      font-weight: 700;
+      color: #888;
+    }
+    .amount-divider {
+      height: 2px;
+      background: #003876;
+      margin: 4px 0 14px 0;
+      border-radius: 1px;
+    }
+    .amount-mst-preview {
+      background: #f5f8fc;
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .preview-label {
+      font-size: 12px;
+      color: #666;
+    }
+    .preview-value {
+      font-size: 17px;
+      font-weight: 800;
+      color: #003876;
+    }
+
+    .preset-buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .preset-btn {
+      padding: 11px 4px;
+      background: #f5f6f8;
+      border: 1px solid #e8eaef;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1a1a1a;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .preset-btn:active {
+      background: #003876;
+      color: #fff;
+      border-color: #003876;
+    }
+
+    /* 잔고 카드 */
+    .balance-card {
+      background: linear-gradient(135deg, #f8f9fb 0%, #eef2f7 100%);
+      border: 1px solid #e3e8f0;
+    }
+    .balance-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .balance-label {
+      font-size: 12px;
+      color: #666;
+      font-weight: 500;
+    }
+    .balance-amount {
+      font-size: 17px;
+      font-weight: 800;
+      color: #1a1a1a;
+    }
+    .balance-amount.low { color: #d93025; }
+    .balance-sub {
+      font-size: 11px;
+      color: #888;
+      margin-top: 4px;
+      text-align: right;
+    }
+    .balance-connect {
+      width: 100%;
+      padding: 11px;
+      background: #003876;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
+      display: none;
+    }
+    .balance-connect.show { display: block; }
+
+    /* 송금 버튼 */
+    .submit-btn {
+      width: 100%;
+      padding: 16px;
+      background: #003876;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      margin-top: 8px;
+      letter-spacing: -0.3px;
+      transition: all 0.15s;
+      box-shadow: 0 4px 14px rgba(0, 56, 118, 0.25);
+    }
+    .submit-btn:active { transform: scale(0.99); }
+    .submit-btn:disabled {
+      background: #c5cad2;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    /* 안내 박스 */
+    .notice {
+      background: #fff8e6;
+      border-left: 3px solid #f5a623;
+      padding: 10px 12px;
+      border-radius: 0 8px 8px 0;
+      font-size: 11.5px;
+      color: #6a4a00;
+      line-height: 1.55;
+      margin-bottom: 12px;
+    }
+
+    /* 상태 메시지 */
+    .status {
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      text-align: center;
+      display: none;
+      line-height: 1.5;
+      margin-top: 10px;
+    }
+    .status.info {
+      display: block;
+      background: #e7f1fb;
+      color: #003876;
+      border: 1px solid #b8d4ec;
+    }
+    .status.success {
+      display: block;
+      background: #e6f7ec;
+      color: #1e7e3d;
+      border: 1px solid #b7e2c5;
+    }
+    .status.error {
+      display: block;
+      background: #fdecea;
+      color: #b71c1c;
+      border: 1px solid #f5c6c2;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 10.5px;
+      color: #aaa;
+      padding: 16px;
+      line-height: 1.6;
+    }
+    .footer strong { color: #666; }
+
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(0,56,118,0.3);
+      border-top-color: #003876;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-top">
+      <div class="header-logo">
+        <div class="header-logo-icon">🌳</div>
+        <div class="header-logo-text">Mustree Pay</div>
+      </div>
+      <div class="header-status">실시간 결제</div>
+    </div>
+    <div class="header-title">MST 결제하기</div>
+    <div class="header-subtitle">메타마스크 지갑에서 음식점으로 송금</div>
+  </div>
+
+  <div class="rate-info">
+    <div>
+      <div class="rate-left-label">적용 환율</div>
+      <div class="rate-main">
+        <span class="value">1 MST</span>
+        <span class="equals">=</span>
+        <span class="value">1,000원</span>
+      </div>
+    </div>
+    <div class="rate-tag">고정 환율</div>
+  </div>
+
+  <div class="content">
+
+    <div class="card">
+      <div class="recipient">
+        <div class="recipient-icon">🍽️</div>
+        <div class="recipient-info">
+          <div class="recipient-label">받는 곳</div>
+          <div class="recipient-name">음식점 결제 지갑</div>
+          <div class="recipient-addr">0x15bAf5665f33C79718D5939eba9aE648BDb66D81</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="amount-section">
+        <div class="amount-label">결제 금액</div>
+        <div class="amount-input-wrap">
+          <input id="amountInput" type="number" class="amount-input" placeholder="0" inputmode="numeric" oninput="onAmountInput()">
+          <span class="amount-suffix">원</span>
+        </div>
+        <div class="amount-divider"></div>
+
+        <div class="amount-mst-preview">
+          <span class="preview-label">보낼 MST</span>
+          <span class="preview-value" id="mstPreview">0 MST</span>
+        </div>
+
+        <div class="preset-buttons">
+          <button class="preset-btn" onclick="setAmount(5000)">5천원</button>
+          <button class="preset-btn" onclick="setAmount(10000)">1만원</button>
+          <button class="preset-btn" onclick="setAmount(20000)">2만원</button>
+          <button class="preset-btn" onclick="setAmount(30000)">3만원</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card balance-card">
+      <div class="balance-row">
+        <span class="balance-label">내 지갑 잔고</span>
+        <span class="balance-amount" id="balanceAmount">지갑 미연결</span>
+      </div>
+      <div class="balance-sub" id="balanceSub"></div>
+      <button class="balance-connect" id="connectBtn" onclick="connectWallet()">메타마스크 지갑 연결</button>
+    </div>
+
+    <div class="notice">
+      ⓘ 송금 시 메타마스크 앱에서 한 번 더 확인 절차를 거치며,<br>
+      처리는 보통 수 초 내에 완료됩니다. (네트워크 상황에 따라 차이 발생 가능)
+    </div>
+
+    <button class="submit-btn" id="submitBtn" onclick="sendPayment()" disabled>
+      결제하기
+    </button>
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <div class="footer">
+    Mustree Network · Chain ID 7601 · block.mst3.site<br>
+    <strong>안전한 블록체인 거래</strong> · 거래 내역은 누구나 조회 가능
+  </div>
+
+  <script>
+    const RECIPIENT = '0x15bAf5665f33C79718D5939eba9aE648BDb66D81';
+    const CHAIN_ID_HEX = '0x1DB1';
+    const RATE = 1000; // 1 MST = 1,000원
+
+    const NETWORK_PARAMS = {
+      chainId: CHAIN_ID_HEX,
+      chainName: 'Mustree',
+      nativeCurrency: { name: 'MST', symbol: 'MST', decimals: 18 },
+      rpcUrls: ['https://block.mst3.site'],
+      blockExplorerUrls: []
+    };
+
+    let userAddress = null;
+    let userBalance = 0n;
+
+    function setStatus(html, type) {
+      const el = document.getElementById('status');
+      el.innerHTML = html;
+      el.className = 'status ' + type;
+    }
+
+    function clearStatus() {
+      const el = document.getElementById('status');
+      el.innerHTML = '';
+      el.className = 'status';
+    }
+
+    function setAmount(krw) {
+      document.getElementById('amountInput').value = krw;
+      onAmountInput();
+    }
+
+    function getKrw() {
+      const v = parseFloat(document.getElementById('amountInput').value);
+      return isNaN(v) ? 0 : v;
+    }
+
+    function getMst() {
+      return getKrw() / RATE;
+    }
+
+    function onAmountInput() {
+      const mst = getMst();
+      document.getElementById('mstPreview').textContent =
+        mst > 0 ? mst.toLocaleString('ko-KR', { maximumFractionDigits: 6 }) + ' MST' : '0 MST';
+      updateSubmitState();
+    }
+
+    function updateSubmitState() {
+      const btn = document.getElementById('submitBtn');
+      const krw = getKrw();
+      btn.disabled = !(userAddress && krw > 0);
+    }
+
+    function weiToMstString(weiBigInt) {
+      const decimals = 18n;
+      const divisor = 10n ** decimals;
+      const intPart = weiBigInt / divisor;
+      const fracPart = weiBigInt % divisor;
+      const fracStr = fracPart.toString().padStart(18, '0').slice(0, 3);
+      return intPart.toString() + '.' + fracStr;
+    }
+
+    function mstToWeiHex(mstAmount) {
+      const scale = 1e8;
+      const intPart = BigInt(Math.round(mstAmount * scale));
+      const remaining = 10n ** 10n;
+      const wei = intPart * remaining;
+      return '0x' + wei.toString(16);
+    }
+
+    async function connectWallet() {
+      if (typeof window.ethereum === 'undefined') {
+        setStatus('메타마스크 앱에서 열어주세요. 잠시 후 이동합니다...', 'info');
+        setTimeout(() => {
+          const host = window.location.host;
+          const path = window.location.pathname;
+          window.location.href = 'https://metamask.app.link/dapp/' + host + path;
+        }, 1500);
+        return;
+      }
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        userAddress = accounts[0];
+        await ensureNetwork();
+        await refreshBalance();
+      } catch (e) {
+        console.error(e);
+        if (e.code !== 4001) {
+          setStatus('지갑 연결 실패: ' + (e.message || ''), 'error');
+        }
+      }
+    }
+
+    async function ensureNetwork() {
+      const currentChain = await window.ethereum.request({ method: 'eth_chainId' });
+      if (currentChain.toLowerCase() !== CHAIN_ID_HEX.toLowerCase()) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: CHAIN_ID_HEX }]
+          });
+        } catch (e) {
+          if (e.code === 4902 || (e.data && e.data.originalError && e.data.originalError.code === 4902)) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [NETWORK_PARAMS]
+            });
+          } else {
+            throw e;
+          }
+        }
+      }
+    }
+
+    async function refreshBalance() {
+      if (!userAddress) return;
+      const amountEl = document.getElementById('balanceAmount');
+      const subEl = document.getElementById('balanceSub');
+      const connectBtn = document.getElementById('connectBtn');
+
+      try {
+        const balanceHex = await window.ethereum.request({
+          method: 'eth_getBalance',
+          params: [userAddress, 'latest']
+        });
+        userBalance = BigInt(balanceHex);
+        const mstStr = weiToMstString(userBalance);
+        const mstNum = parseFloat(mstStr);
+        amountEl.textContent = mstStr + ' MST';
+        amountEl.classList.toggle('low', mstNum < 1);
+        subEl.textContent = '≈ ' + Math.floor(mstNum * RATE).toLocaleString() + '원';
+        connectBtn.classList.remove('show');
+      } catch (e) {
+        amountEl.textContent = '조회 실패';
+        subEl.textContent = e.message || '';
+      }
+      updateSubmitState();
+    }
+
+    async function sendPayment() {
+      const submitBtn = document.getElementById('submitBtn');
+      const krw = getKrw();
+      const mst = getMst();
+      if (!userAddress || krw <= 0) return;
+
+      // 잔고 확인
+      const requiredWei = BigInt('0x' + mstToWeiHex(mst).slice(2));
+      if (userBalance > 0n && requiredWei > userBalance) {
+        setStatus('잔고가 부족합니다. 환전소에서 MST를 먼저 받아주세요.', 'error');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      setStatus('<span class="spinner"></span>네트워크 확인 중...', 'info');
+
+      try {
+        await ensureNetwork();
+        setStatus('<span class="spinner"></span>메타마스크에서 결제를 승인해 주세요...', 'info');
+
+        const txHash = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [{
+            from: userAddress,
+            to: RECIPIENT,
+            value: mstToWeiHex(mst)
+          }]
+        });
+
+        setStatus(
+          `✅ 결제 완료<br>` +
+          `<span style="font-size:12px;">${krw.toLocaleString()}원 (${mst} MST) 전송됨</span><br>` +
+          `<span style="font-size:10px;opacity:0.7;word-break:break-all;">TX: ${txHash}</span>`,
+          'success'
+        );
+        submitBtn.textContent = '✓ 결제 완료';
+
+        setTimeout(() => refreshBalance(), 2000);
+      } catch (e) {
+        console.error(e);
+        if (e.code === 4001) {
+          setStatus('결제가 취소되었습니다.', 'error');
+        } else {
+          setStatus('오류: ' + (e.message || '알 수 없는 오류'), 'error');
+        }
+        submitBtn.disabled = false;
+      }
+    }
+
+    // 페이지 로드 시 자동 연결 시도
+    window.addEventListener('load', async () => {
+      if (typeof window.ethereum === 'undefined') {
+        document.getElementById('connectBtn').classList.add('show');
+        return;
+      }
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts && accounts.length > 0) {
+          userAddress = accounts[0];
+          await refreshBalance();
+        } else {
+          document.getElementById('connectBtn').classList.add('show');
+        }
+      } catch (e) {
+        document.getElementById('connectBtn').classList.add('show');
+      }
+
+      if (window.ethereum.on) {
+        window.ethereum.on('accountsChanged', async (accs) => {
+          userAddress = accs[0] || null;
+          if (userAddress) await refreshBalance();
+          else {
+            document.getElementById('balanceAmount').textContent = '지갑 미연결';
+            document.getElementById('balanceSub').textContent = '';
+            document.getElementById('connectBtn').classList.add('show');
+            updateSubmitState();
+          }
+        });
+        window.ethereum.on('chainChanged', () => {
+          if (userAddress) refreshBalance();
+        });
+      }
+    });
+  </script>
+</body>
+</html>
