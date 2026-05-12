@@ -380,6 +380,171 @@
       margin-right: 6px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== 결제 완료 풀스크린 오버레이 ===== */
+    .success-overlay {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(180deg, #003876 0%, #00529b 60%, #f5f6f8 60%);
+      z-index: 9999;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 60px 20px 30px 20px;
+      overflow-y: auto;
+    }
+    .success-overlay.show {
+      display: flex;
+      animation: fadeIn 0.3s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .success-check {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 18px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      animation: scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes scaleIn {
+      from { transform: scale(0); }
+      to { transform: scale(1); }
+    }
+    .success-check::before {
+      content: '';
+      display: block;
+      width: 36px;
+      height: 60px;
+      border-right: 6px solid #1e7e3d;
+      border-bottom: 6px solid #1e7e3d;
+      transform: rotate(45deg) translate(-2px, -8px);
+      border-radius: 2px;
+    }
+
+    .success-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 4px;
+      letter-spacing: -0.5px;
+    }
+    .success-subtitle {
+      font-size: 14px;
+      color: rgba(255,255,255,0.85);
+      margin-bottom: 32px;
+    }
+
+    .success-receipt {
+      width: 100%;
+      max-width: 380px;
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px 22px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+      position: relative;
+    }
+    .receipt-amount {
+      text-align: center;
+      padding-bottom: 18px;
+      border-bottom: 2px dashed #e3e8f0;
+      margin-bottom: 18px;
+    }
+    .receipt-amount-label {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    .receipt-amount-krw {
+      font-size: 34px;
+      font-weight: 800;
+      color: #1a1a1a;
+      letter-spacing: -1px;
+    }
+    .receipt-amount-mst {
+      font-size: 14px;
+      color: #003876;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .receipt-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 7px 0;
+      font-size: 13px;
+      gap: 10px;
+    }
+    .receipt-row-label {
+      color: #888;
+      flex-shrink: 0;
+    }
+    .receipt-row-value {
+      color: #1a1a1a;
+      font-weight: 600;
+      text-align: right;
+      word-break: break-all;
+    }
+    .receipt-row-value.mono {
+      font-family: 'SF Mono', Monaco, Menlo, monospace;
+      font-size: 11px;
+      font-weight: 500;
+      color: #666;
+    }
+
+    .success-actions {
+      width: 100%;
+      max-width: 380px;
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .success-btn-primary {
+      width: 100%;
+      padding: 16px;
+      background: #003876;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0, 56, 118, 0.25);
+    }
+    .success-btn-secondary {
+      width: 100%;
+      padding: 14px;
+      background: transparent;
+      color: #888;
+      border: none;
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .success-staff-hint {
+      width: 100%;
+      max-width: 380px;
+      margin-top: 14px;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 10px;
+      font-size: 12px;
+      color: #555;
+      text-align: center;
+      line-height: 1.55;
+    }
+    .success-staff-hint strong { color: #003876; }
   </style>
 </head>
 <body>
@@ -469,6 +634,47 @@
     <strong>안전한 블록체인 거래</strong> · 거래 내역은 누구나 조회 가능
   </div>
 
+  <!-- ===== 결제 완료 풀스크린 오버레이 ===== -->
+  <div id="successOverlay" class="success-overlay">
+    <div class="success-check"></div>
+    <div class="success-title">결제 완료</div>
+    <div class="success-subtitle">정상적으로 처리되었습니다</div>
+
+    <div class="success-receipt">
+      <div class="receipt-amount">
+        <div class="receipt-amount-label">결제 금액</div>
+        <div class="receipt-amount-krw" id="receiptKrw">0원</div>
+        <div class="receipt-amount-mst" id="receiptMst">0 MST</div>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-row-label">받는 곳</span>
+        <span class="receipt-row-value">음식점 결제 지갑</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-row-label">결제 일시</span>
+        <span class="receipt-row-value" id="receiptTime">-</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-row-label">거래 번호</span>
+        <span class="receipt-row-value mono" id="receiptTx">-</span>
+      </div>
+    </div>
+
+    <div class="success-staff-hint">
+      이 화면을 <strong>음식점 직원에게 보여주세요</strong> ✨<br>
+      거래 내역이 블록체인에 안전하게 기록되었습니다
+    </div>
+
+    <div class="success-actions">
+      <button class="success-btn-primary" onclick="window.close(); setTimeout(()=>{window.location.href='about:blank'},100);">
+        결제 화면 닫기
+      </button>
+      <button class="success-btn-secondary" onclick="resetForNewPayment()">
+        다시 결제하기 (새 거래)
+      </button>
+    </div>
+  </div>
+
   <script>
     const RECIPIENT = '0x15bAf5665f33C79718D5939eba9aE648BDb66D81';
     const CHAIN_ID_HEX = '0x1DB1';
@@ -484,6 +690,45 @@
 
     let userAddress = null;
     let userBalance = 0n;
+    let paymentLocked = false; // 결제 완료 후 잠금 플래그
+
+    function showSuccessOverlay(krw, mst, txHash) {
+      // 영수증 정보 채우기
+      document.getElementById('receiptKrw').textContent = krw.toLocaleString() + '원';
+      document.getElementById('receiptMst').textContent = mst + ' MST';
+
+      const now = new Date();
+      const timeStr = now.getFullYear() + '. ' +
+        String(now.getMonth() + 1).padStart(2, '0') + '. ' +
+        String(now.getDate()).padStart(2, '0') + ' ' +
+        String(now.getHours()).padStart(2, '0') + ':' +
+        String(now.getMinutes()).padStart(2, '0') + ':' +
+        String(now.getSeconds()).padStart(2, '0');
+      document.getElementById('receiptTime').textContent = timeStr;
+      document.getElementById('receiptTx').textContent = txHash;
+
+      // 결제 잠금 활성화
+      paymentLocked = true;
+
+      // 오버레이 표시
+      document.getElementById('successOverlay').classList.add('show');
+
+      // 스크롤을 맨 위로
+      window.scrollTo(0, 0);
+    }
+
+    function resetForNewPayment() {
+      // 명시적으로 "다시 결제하기"를 누른 경우에만 잠금 해제
+      paymentLocked = false;
+      document.getElementById('successOverlay').classList.remove('show');
+      document.getElementById('amountInput').value = '';
+      onAmountInput();
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.textContent = '결제하기';
+      submitBtn.disabled = true;
+      clearStatus();
+      if (userAddress) refreshBalance();
+    }
 
     function setStatus(html, type) {
       const el = document.getElementById('status');
@@ -611,6 +856,11 @@
     }
 
     async function sendPayment() {
+      // 결제 잠금 상태면 무조건 차단
+      if (paymentLocked) {
+        return;
+      }
+
       const submitBtn = document.getElementById('submitBtn');
       const krw = getKrw();
       const mst = getMst();
@@ -639,15 +889,10 @@
           }]
         });
 
-        setStatus(
-          `✅ 결제 완료<br>` +
-          `<span style="font-size:12px;">${krw.toLocaleString()}원 (${mst} MST) 전송됨</span><br>` +
-          `<span style="font-size:10px;opacity:0.7;word-break:break-all;">TX: ${txHash}</span>`,
-          'success'
-        );
-        submitBtn.textContent = '✓ 결제 완료';
+        // 성공 시 풀스크린 완료 화면 표시 (중복 송금 원천 차단)
+        clearStatus();
+        showSuccessOverlay(krw, mst, txHash);
 
-        setTimeout(() => refreshBalance(), 2000);
       } catch (e) {
         console.error(e);
         if (e.code === 4001) {
