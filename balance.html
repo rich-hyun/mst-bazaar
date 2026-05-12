@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#003876">
+  <title>MST 잔고 확인</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      background: #f5f6f8;
+      color: #1a1a1a;
+      min-height: 100vh;
+      padding-bottom: 40px;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #003876 0%, #00529b 100%);
+      color: #fff;
+      padding: 18px 20px 28px 20px;
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header-logo-icon {
+      width: 32px;
+      height: 32px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .header-logo-text {
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .header-title {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+    .header-subtitle {
+      font-size: 12px;
+      opacity: 0.85;
+    }
+
+    .content {
+      padding: 16px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* 메인 잔고 카드 */
+    .main-balance-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 26px 22px;
+      margin-top: -14px;
+      box-shadow: 0 4px 16px rgba(0, 56, 118, 0.12);
+      text-align: center;
+      position: relative;
+    }
+    .balance-status-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #e7f1fb;
+      color: #003876;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 12px;
+      margin-bottom: 14px;
+    }
+    .balance-status-tag::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: #003876;
+      border-radius: 50%;
+    }
+    .balance-status-tag.live {
+      background: #e6f7ec;
+      color: #1e7e3d;
+    }
+    .balance-status-tag.live::before {
+      background: #4cd964;
+      box-shadow: 0 0 6px #4cd964;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .balance-label {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+    .balance-amount {
+      font-size: 44px;
+      font-weight: 800;
+      color: #1a1a1a;
+      letter-spacing: -1.5px;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+    .balance-amount .unit {
+      font-size: 22px;
+      color: #003876;
+      margin-left: 6px;
+      font-weight: 700;
+    }
+    .balance-amount.disconnected {
+      font-size: 22px;
+      color: #888;
+      font-weight: 600;
+    }
+    .balance-krw {
+      font-size: 16px;
+      color: #003876;
+      font-weight: 600;
+      padding: 8px 16px;
+      background: #f5f8fc;
+      border-radius: 20px;
+      display: inline-block;
+      margin-top: 4px;
+    }
+    .balance-address {
+      font-family: 'SF Mono', Monaco, Menlo, monospace;
+      font-size: 11px;
+      color: #aaa;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid #f0f2f6;
+      word-break: break-all;
+    }
+    .refresh-btn-floating {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #f5f8fc;
+      border: none;
+      color: #003876;
+      font-size: 18px;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .refresh-btn-floating.show { display: flex; }
+    .refresh-btn-floating:active { transform: scale(0.9); }
+    .refresh-btn-floating.spinning { animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .connect-btn {
+      width: 100%;
+      padding: 14px;
+      background: #003876;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 16px;
+      display: none;
+    }
+    .connect-btn.show { display: block; }
+
+    /* 빠른 액션 버튼들 */
+    .quick-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .quick-action {
+      background: #fff;
+      border: 1px solid #e8eaef;
+      border-radius: 12px;
+      padding: 14px;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .quick-action:active { transform: scale(0.98); border-color: #003876; }
+    .quick-action-icon {
+      width: 36px;
+      height: 36px;
+      background: #f5f8fc;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .quick-action-text {
+      flex: 1;
+    }
+    .quick-action-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 2px;
+    }
+    .quick-action-sub {
+      font-size: 10px;
+      color: #888;
+    }
+
+    /* 환율 정보 */
+    .rate-info {
+      background: #fff;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-top: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+    .rate-info-label {
+      color: #666;
+    }
+    .rate-info-value {
+      color: #003876;
+      font-weight: 700;
+    }
+
+    .notice {
+      background: #fff8e6;
+      border-left: 3px solid #f5a623;
+      padding: 10px 12px;
+      border-radius: 0 8px 8px 0;
+      font-size: 11.5px;
+      color: #6a4a00;
+      line-height: 1.55;
+      margin-top: 14px;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 10.5px;
+      color: #aaa;
+      padding: 20px 16px;
+      line-height: 1.6;
+    }
+
+    .switch-network-btn {
+      width: 100%;
+      padding: 11px;
+      background: #fff8e6;
+      color: #b8860b;
+      border: 1px solid #f5d491;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 12px;
+      display: none;
+    }
+    .switch-network-btn.show { display: block; }
+
+    .balance-amount.warning { color: #b8860b; }
+    .balance-amount.warning .unit { color: #b8860b; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-top">
+      <div class="header-logo">
+        <div class="header-logo-icon">🌳</div>
+        <div class="header-logo-text">Mustree</div>
+      </div>
+      <span style="font-size: 11px; opacity: 0.7;">잔고 조회</span>
+    </div>
+    <div class="header-title">내 MST 잔고</div>
+    <div class="header-subtitle">메타마스크 지갑의 보유 MST를 확인합니다</div>
+  </div>
+
+  <div class="content">
+    <div class="main-balance-card">
+      <button id="refreshBtn" class="refresh-btn-floating" onclick="refreshBalance()" title="새로고침">↻</button>
+
+      <div id="statusTag" class="balance-status-tag">지갑 미연결</div>
+
+      <div class="balance-label">보유 잔고</div>
+      <div id="balanceAmount" class="balance-amount disconnected">- - -</div>
+      <div id="balanceKrw" class="balance-krw" style="display: none;">≈ 0원</div>
+
+      <button id="connectBtn" class="connect-btn show" onclick="connectWallet()">
+        메타마스크 지갑 연결하기
+      </button>
+
+      <button id="switchBtn" class="switch-network-btn" onclick="switchToMustree()">
+        🔄 Mustree 네트워크로 전환
+      </button>
+
+      <div id="addressBox" class="balance-address" style="display: none;"></div>
+    </div>
+
+    <div class="quick-actions">
+      <div class="quick-action" onclick="openPage('pay.html')">
+        <div class="quick-action-icon">🍽️</div>
+        <div class="quick-action-text">
+          <div class="quick-action-title">음식점 결제</div>
+          <div class="quick-action-sub">MST로 결제하기</div>
+        </div>
+      </div>
+      <div class="quick-action" onclick="openPage('index.html')">
+        <div class="quick-action-icon">🌐</div>
+        <div class="quick-action-text">
+          <div class="quick-action-title">네트워크 등록</div>
+          <div class="quick-action-sub">Mustree 추가</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rate-info">
+      <span class="rate-info-label">적용 환율</span>
+      <span class="rate-info-value">1 MST = 1,000원</span>
+    </div>
+
+    <div class="notice">
+      ⓘ 잔고는 메타마스크에서 직접 가져옵니다.<br>
+      거래 직후에는 1-2초 후 새로고침 버튼(↻)을 눌러주세요.
+    </div>
+  </div>
+
+  <div class="footer">
+    Mustree Network · Chain ID 7601 · block.mst3.site<br>
+    잔고 정보는 본인만 볼 수 있습니다
+  </div>
+
+  <script>
+    const CHAIN_ID_HEX = '0x1DB1';
+    const RATE = 1000;
+
+    const NETWORK_PARAMS = {
+      chainId: CHAIN_ID_HEX,
+      chainName: 'Mustree',
+      nativeCurrency: { name: 'MST', symbol: 'MST', decimals: 18 },
+      rpcUrls: ['https://block.mst3.site']
+    };
+
+    let userAddress = null;
+    let onWrongNetwork = false;
+
+    function weiToMstString(weiBigInt) {
+      const decimals = 18n;
+      const divisor = 10n ** decimals;
+      const intPart = weiBigInt / divisor;
+      const fracPart = weiBigInt % divisor;
+      const fracStr = fracPart.toString().padStart(18, '0').slice(0, 4);
+      // 소수점 뒤가 0000이면 정수만 표시
+      const trimmed = fracStr.replace(/0+$/, '');
+      return trimmed ? intPart.toString() + '.' + trimmed : intPart.toString();
+    }
+
+    function shortAddr(addr) {
+      if (!addr) return '';
+      return addr.slice(0, 8) + '...' + addr.slice(-6);
+    }
+
+    function setStatus(text, type) {
+      const tag = document.getElementById('statusTag');
+      tag.textContent = text;
+      tag.className = 'balance-status-tag ' + (type || '');
+    }
+
+    function openPage(filename) {
+      window.location.href = '/' + filename;
+    }
+
+    async function connectWallet() {
+      if (typeof window.ethereum === 'undefined') {
+        const host = window.location.host;
+        const path = window.location.pathname;
+        window.location.href = 'https://metamask.app.link/dapp/' + host + path;
+        return;
+      }
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        userAddress = accounts[0];
+        await refreshBalance();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function switchToMustree() {
+      if (typeof window.ethereum === 'undefined') return;
+      const btn = document.getElementById('switchBtn');
+      btn.disabled = true;
+      const oldText = btn.textContent;
+      btn.textContent = '전환 요청 중...';
+
+      try {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: CHAIN_ID_HEX }]
+          });
+        } catch (e) {
+          if (e.code === 4902 || (e.data && e.data.originalError && e.data.originalError.code === 4902)) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [NETWORK_PARAMS]
+            });
+          } else {
+            throw e;
+          }
+        }
+        // chainChanged 이벤트가 알아서 refreshBalance 트리거
+      } catch (e) {
+        if (e.code !== 4001) {
+          alert('네트워크 전환 실패: ' + (e.message || '알 수 없는 오류'));
+        }
+      } finally {
+        btn.textContent = oldText;
+        btn.disabled = false;
+      }
+    }
+
+    async function refreshBalance() {
+      if (typeof window.ethereum === 'undefined' || !userAddress) return;
+      const amountEl = document.getElementById('balanceAmount');
+      const krwEl = document.getElementById('balanceKrw');
+      const addrEl = document.getElementById('addressBox');
+      const refreshBtn = document.getElementById('refreshBtn');
+      const switchBtn = document.getElementById('switchBtn');
+      const connectBtn = document.getElementById('connectBtn');
+
+      refreshBtn.classList.add('spinning');
+      connectBtn.classList.remove('show');
+
+      try {
+        // 체인 확인
+        const currentChain = await window.ethereum.request({ method: 'eth_chainId' });
+        if (currentChain.toLowerCase() !== CHAIN_ID_HEX.toLowerCase()) {
+          onWrongNetwork = true;
+          setStatus('다른 네트워크', '');
+          amountEl.textContent = '⚠ 다른 네트워크';
+          amountEl.className = 'balance-amount warning';
+          krwEl.style.display = 'none';
+          addrEl.style.display = 'none';
+          switchBtn.classList.add('show');
+          refreshBtn.classList.remove('show');
+          return;
+        }
+
+        onWrongNetwork = false;
+        switchBtn.classList.remove('show');
+        refreshBtn.classList.add('show');
+
+        const balanceHex = await window.ethereum.request({
+          method: 'eth_getBalance',
+          params: [userAddress, 'latest']
+        });
+        const balanceWei = BigInt(balanceHex);
+        const mstStr = weiToMstString(balanceWei);
+        const mstNum = parseFloat(mstStr);
+
+        amountEl.innerHTML = mstStr + '<span class="unit">MST</span>';
+        amountEl.className = 'balance-amount';
+        krwEl.textContent = '≈ ' + Math.floor(mstNum * RATE).toLocaleString() + '원';
+        krwEl.style.display = 'inline-block';
+        addrEl.textContent = '내 주소: ' + shortAddr(userAddress);
+        addrEl.style.display = 'block';
+
+        setStatus('실시간 연결됨', 'live');
+      } catch (e) {
+        console.error(e);
+        amountEl.textContent = '조회 실패';
+        amountEl.className = 'balance-amount disconnected';
+      } finally {
+        setTimeout(() => refreshBtn.classList.remove('spinning'), 400);
+      }
+    }
+
+    // 페이지 로드 시 자동 연결 시도
+    window.addEventListener('load', async () => {
+      if (typeof window.ethereum === 'undefined') return;
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts && accounts.length > 0) {
+          userAddress = accounts[0];
+          await refreshBalance();
+        }
+      } catch (e) {
+        console.error(e);
+      }
+
+      if (window.ethereum.on) {
+        window.ethereum.on('accountsChanged', async (accs) => {
+          userAddress = accs[0] || null;
+          if (userAddress) {
+            await refreshBalance();
+          } else {
+            document.getElementById('connectBtn').classList.add('show');
+            document.getElementById('balanceAmount').textContent = '- - -';
+            document.getElementById('balanceKrw').style.display = 'none';
+            document.getElementById('addressBox').style.display = 'none';
+            setStatus('지갑 미연결', '');
+          }
+        });
+        window.ethereum.on('chainChanged', () => {
+          if (userAddress) refreshBalance();
+        });
+      }
+    });
+  </script>
+</body>
+</html>
